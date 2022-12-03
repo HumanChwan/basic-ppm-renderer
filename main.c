@@ -1,12 +1,14 @@
+#define _GNU_SOURCE
+#include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "renderer.h"
 
-#define HEIGHT 1080
-#define WIDTH 1920
+#define HEIGHT 600
+#define WIDTH 800
 
-#define BACKGROUND_COLOR 0xFF303030
 #define FOREGROUND_COLOR 0xFF54ff54
 
 Color32 image[HEIGHT * WIDTH];
@@ -58,8 +60,6 @@ float lerpf16(float perc, uint16_t low, uint16_t high) {
     return low + perc * (high - low);
 }
 
-int min(int a, int b) { return (a > b ? b : a); }
-
 void lerpy_circle(void) {
     uint16_t strips, strip_size;
     if (HEIGHT / H_STRIP > WIDTH / W_STRIP)
@@ -87,8 +87,62 @@ void lerpy_circle(void) {
     if (err) fprintf(stderr, "ERROR: %s", strerror(err));
 }
 
-int main(void) {
-    simple_circle();
+#define LINE_COLOR 0xFFa0a0f2
+#define RED_LINE 0xFF0000FF
+void draw_line(void) {
+    Canvas canvas = {image, WIDTH, HEIGHT};
+    Coordinate A = {0, 0}, D = {WIDTH, HEIGHT}, B = {WIDTH, 0}, C = {0, HEIGHT};
+    render_line_to_canvas(&canvas, &A, &D, LINE_COLOR);
+    render_line_to_canvas(&canvas, &B, &C, LINE_COLOR);
+
+    Coordinate Z = {100, 450};
+    render_line_to_canvas(&canvas, &A, &Z, RED_LINE);
+
+    Errorno err = save_canvas_to_ppm(&canvas, "line.ppm");
+    if (err) fprintf(stderr, "ERROR: %s", strerror(err));
+}
+
+#define BACKGROUND_COLOR 0xFF101010
+#define YELLOW_CIRCLE 0xFF00FFFF
+#define RED_POLYGON 0xFF0000FF
+void draw_circumcircle_with_regular_polygon(Canvas* canvas, uint32_t n,
+                                            int16_t side_length) {
+    fill_canvas(canvas, BACKGROUND_COLOR);
+    Coordinate center = {WIDTH / 2, HEIGHT / 2};
+
+    float theta = deg2rad(360.0f / n);
+
+    int16_t radius = side_length / sinf(theta);
+    int16_t in_radius = radius * cosf(theta / 2.0f);
+
+    // SCAM way of making a non-filled circle
+    render_circle_to_canvas(canvas, YELLOW_CIRCLE, &center, in_radius);
+    render_circle_to_canvas(canvas, BACKGROUND_COLOR, &center, in_radius - 1);
+
+    Coordinate vertices[n];
+    for (size_t i = 0; i < n; ++i) {
+        float sin_value, cos_value;
+        sincosf(i * theta, &sin_value, &cos_value);
+        vertices[i] = (Coordinate){center.x + radius * sin_value,
+                                   center.y - radius * cos_value};
+    }
+
+    for (size_t i = 0; i < n; ++i) {
+        render_line_to_canvas(canvas, vertices + i, vertices + (i + 1) % n,
+                              RED_POLYGON);
+    }
+
+    Errorno err = save_canvas_to_ppm(canvas, "polygon.ppm");
+    if (err) fprintf(stderr, "ERROR: %s", strerror(err));
+}
+
+int main(int argc, char* argv[]) {
+    int side_length = 10;
+    if (argc == 2) side_length = atoi(argv[1]);
+    Canvas canvas = {image, WIDTH, HEIGHT};
+    draw_circumcircle_with_regular_polygon(&canvas, side_length, 100);
+    /* draw_line(); */
+    /* simple_circle(); */
     /* checkerboard(); */
     /* lerpy_circle(); */
     return 0;

@@ -2,7 +2,7 @@ CC=gcc
 CFLAGS=-Wall -Wextra -Werror
 
 all: main.c libppm.a
-	$(CC) $(CFLAGS) -o main main.c -L. -lppm
+	$(CC) $(CFLAGS) -o main main.c -L. -lppm -lm
 
 libppm.a: renderer.h renderer.c
 	$(CC) -c $(CFLAGS) renderer.c; \
